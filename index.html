@@ -1,77 +1,125 @@
-
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
-    <link type="text/css" rel="stylesheet" href="topic-tree.css">
-    <link type="text/css" rel="stylesheet" href="style.css"/>
-    <script type="text/javascript" src="d3/d3.js"></script>
-    <script type="text/javascript" src="d3/d3.layout.js"></script>
-    <script type="text/javascript" src="mqttws31.js"></script>
-    <script type="text/javascript" src="topic-tree.js"></script>
-  </head>
-  <body>
-    <div id=status>Disconnected</div>
-    <div style="overflow: auto">
-      <div id="body" style="height: 90%">
-    	
-      </div>
-    </div>
-    <script type="text/javascript">
 
-var options = {
-  host: location.hostname,
-  port: parseInt(location.port),
-  clientID: "web" + new Date().getTime(),
-  connectOpts: {
-    // userName: '',
-    // password: '',
-    // useSSL: true,
-    keepAliveInterval: 30,
-    timeout: 10,
-    cleanSession: false,
-    onSuccess: onConnect,
-    onFailure: onFailure
-  }
-}
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  <link type="text/css" rel="stylesheet" href="topic-tree.css">
+  <link type="text/css" rel="stylesheet" href="style.css" />
 
-setup("body");
+</head>
 
-var client = new Paho.MQTT.Client(options.host,options.port,options.clientID);
-client.onMessageArrived = onMessage;
-client.onconnectionlost = onDisconnect;
+<body>
 
-function onConnect(){
-	client.subscribe('#',onMessage);
-  document.getElementById('status').innerHTML= "";
-	console.log("mqtt connected");
-}
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script type="text/javascript" src="mqttws31.js"></script>
+  <script type="text/javascript" src="topic-tree.js"></script>
 
-function onFailure() {
-  document.getElementById('status').innerHTML = "failed to connect";
-  reconnect();
-}
+  <script type="text/javascript">
+    var messages = {
+      'home/cam1': 1,
+      'home/cam2': 2,
+      'home/cam3': 2,
+      'home/cam4': 2,
+      'work/office1/cam1': 2,
+      'work/office2/cam1': 2
+    };
 
-client.connect(options.connectOpts);
+    var options = {
+      host: location.hostname,
+      port: parseInt(location.port),
+      clientID: "web" + new Date().getTime(),
+      connectOpts: {
+        // userName: '',
+        // password: '',
+        // useSSL: true,
+        keepAliveInterval: 30,
+        timeout: 10,
+        cleanSession: false,
+        onSuccess: onConnect,
+        onFailure: onFailure
+      }
+    }
 
-function onMessage(message) {
-	//console.log(message.topic + "- " + message.payload);
-	addNode(message.destinationName, message.payloadString);
-}
 
-function onDisconnect(reason) {
-	console.log("disconnected - " + reason);
-	//alert("disconnected - " + reason);
-  document.getElementById('status').innerHTML = "Disconnected";
-  reconnect();
-}
 
-function reconnect() {
-  setTimeout(function(){
-    document.getElementById('status').innerHTML = "reconnecting";
+    var client = new Paho.MQTT.Client(options.host, options.port, options.clientID);
+    client.onMessageArrived = onMessage;
+    client.onconnectionlost = onDisconnect;
+
+    function onConnect() {
+      client.subscribe('#', onMessage);
+      document.getElementById('status').innerHTML = "";
+      console.log("mqtt connected");
+    }
+
+    function onFailure() {
+      document.getElementById('status').innerHTML = "failed to connect";
+      reconnect();
+    }
+
     client.connect(options.connectOpts);
-  },3000);
-}
-    </script>
-  </body>
+
+    function onMessage(message) {
+      debugger;
+      messages[message.topic] = message.payloadString;
+      //console.log(message.topic + "- " + message.payload);
+      //addNode(message.destinationName, message.payloadString);
+    }
+
+    function onDisconnect(reason) {
+      console.log("disconnected - " + reason);
+      //alert("disconnected - " + reason);
+      document.getElementById('status').innerHTML = "Disconnected";
+      reconnect();
+    }
+
+    function reconnect() {
+      setTimeout(function () {
+        document.getElementById('status').innerHTML = "reconnecting";
+        client.connect(options.connectOpts);
+      }, 3000);
+    }
+
+
+    var keys = Object.keys(messages);
+    var hobj = {};//indice para la busqueda
+    var hobjArr = [{ name: 'root', parent: '', value: null }];
+
+    //completa los keys con los roots
+    keys.forEach(path => {
+      var prevPath = 'root';
+
+      var splited = path.split('/');;
+      splited.forEach(element => {
+        elementPath = prevPath + '/' + element;
+
+        if (!hobj[elementPath]) {
+          hobj[elementPath] = 1;
+          hobjArr.push({ name: elementPath, parent: prevPath, value: messages[elementPath] || null });
+        }
+
+        prevPath = elementPath;
+      });
+
+
+    });
+
+    var treeData = d3.stratify()
+      .id(function (d) { return d.name; })
+      .parentId(function (d) { return d.parent; })
+      (hobjArr);
+
+    var puntero = colapsable(treeData);
+    setTimeout(actualizar,3000);
+
+    function actualizar(){
+
+      puntero.update();
+      setTimeout(actualizar,3000);
+
+    }
+
+  </script>
+</body>
+
 </html>
