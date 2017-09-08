@@ -144,6 +144,9 @@
       // Enter any new modes at the parent's previous position.
       var nodeEnter = node.enter().append('g')
         .attr('class', 'node')
+        .attr('id', function (d) {
+          return d.data.data.name;
+        })
         .attr("transform", function (d) {
           return "translate(" + source.y0 + "," + source.x0 + ")";
         })
@@ -252,6 +255,6 @@
         }
         update(d);
       }
-      return {update = function(){ update(root);}}
+      //return {update = function(){ update(root);}}
     }
   }
